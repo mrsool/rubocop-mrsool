@@ -1,1 +1,5 @@
-# Write it!
+
+Mrsool/LetsNot:
+  Description: 'Do not use `let` in rspec'
+  Enabled: true
+  VersionAdded: '0.1.0'
