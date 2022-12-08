@@ -9,6 +9,11 @@ Mrsool/LetsNot:
   Enabled: true
   VersionAdded: '0.1.0'
 
+Mrsool/OrderBuyerId:
+  Description: 'Do not use order.iBuyerId'
+  Enabled: true
+  VersionAdded: '0.1.0'
+
 Mrsool/SpecGlobalMethod:
   Description: 'Do not add global methods to spec files'
   Enabled: true
