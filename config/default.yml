@@ -1,4 +1,9 @@
 
+Mrsool/DbMigrationTimestamp:
+  Description: 'Do not forget to commit structure.sql after adding a migration'
+  Enabled: true
+  VersionAdded: '0.1.0'
+
 Mrsool/DoNotUseDeleteMatched:
   Description: 'Do not use delete_matched, use RedisHashStore#delete_hash instead'
   Enabled: true

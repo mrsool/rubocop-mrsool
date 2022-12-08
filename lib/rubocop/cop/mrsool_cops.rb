@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'mrsool/db_migration_timestamp'
 require_relative 'mrsool/do_not_use_delete_matched'
 require_relative 'mrsool/lets_not'
 require_relative 'mrsool/order_buyer_id'
