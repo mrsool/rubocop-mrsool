@@ -4,6 +4,11 @@ Mrsool/LetsNot:
   Enabled: true
   VersionAdded: '0.1.0'
 
+Mrsool/SpecGlobalMethod:
+  Description: 'Do not add global methods to spec files'
+  Enabled: true
+  VersionAdded: '0.1.0'
+
 Mrsool/SystemTests:
   Description: 'Prefer :system to :feature'
   Enabled: true
