@@ -1,4 +1,9 @@
 
+Mrsool/DoNotUseDeleteMatched:
+  Description: 'Do not use delete_matched, use RedisHashStore#delete_hash instead'
+  Enabled: true
+  VersionAdded: '0.1.0'
+
 Mrsool/LetsNot:
   Description: 'Do not use `let` in rspec'
   Enabled: true
