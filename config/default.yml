@@ -28,3 +28,8 @@ Mrsool/SystemTests:
   Description: 'Prefer :system to :feature'
   Enabled: true
   VersionAdded: '0.1.0'
+
+Mrsool/Paperclip:
+  Description: 'Prefer ActiveStorage over Paperclip'
+  Enabled: true
+  VersionAdded: '0.1.0'
