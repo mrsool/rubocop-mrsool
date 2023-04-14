@@ -1,38 +1,26 @@
 # Rubocop::Mrsool
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/rubocop/mrsool`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
-
-## Installation
-
-Add this line to your application's Gemfile:
-
-```ruby
-gem 'rubocop-mrsool', require: false
-```
-
-And then execute:
-
-    $ bundle install
-
-Or install it yourself as:
-
-    $ gem install rubocop-mrsool
+Custom cops used in mrsool backend.
 
 ## Usage
 
-TODO: Write usage instructions here
+Enable cops in `.rubocop.yml` in the main repo as follows:
 
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```ruby
+Mrsool/LetsNot:
+  Enabled: true
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/rubocop-mrsool.
+Before you start, read the [guide](https://www.fastruby.io/blog/rubocop/code-quality/create-a-custom-rubocop-cop.html) and check existing examples.
+Read more info about node [patterns](https://github.com/rubocop/rubocop-ast/blob/master/docs/modules/ROOT/pages/node_pattern.adoc).
+
+When you're ready:
+- Create a cop file under `lib/rubocop/cop/mrsool/`
+- Include the new file in `lib/rubocop/cop/mrsool_cops.rb`
+- Don't forget to add specs
+- Push changes to github and update the commit hash in Gemfile in the main repo.
 
 ## License
 
