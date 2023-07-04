@@ -33,3 +33,8 @@ Mrsool/Paperclip:
   Description: 'Prefer ActiveStorage over Paperclip'
   Enabled: true
   VersionAdded: '0.1.0'
+
+Mrsool/DoNotUseTravelTo:
+  Description: 'Do not use travel_to, use Timecop.freeze instead. Check our freeze meta syntax in rails_helper.rb'
+  Enabled: true
+  VersionAdded: '0.1.0'
