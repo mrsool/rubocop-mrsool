@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'mrsool/aliased_attributes'
 require_relative 'mrsool/db_migration_timestamp'
 require_relative 'mrsool/do_not_use_delete_matched'
 require_relative 'mrsool/lets_not'
