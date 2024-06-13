@@ -12,7 +12,7 @@ RSpec.describe RuboCop::Cop::Mrsool::AliasedAttributes, :config do
     )
   end
 
-  it "corrects specified attrs" do
+  it "corrects reader" do
     expect_offense(<<~RUBY)
       order.vStatus
       ^^^^^^^^^^^^^ Use `status` instead of `vStatus`
@@ -20,6 +20,17 @@ RSpec.describe RuboCop::Cop::Mrsool::AliasedAttributes, :config do
 
     expect_correction(<<~RUBY)
       order.status
+    RUBY
+  end
+
+  it "corrects writer" do
+    expect_offense(<<~RUBY)
+      order.vStatus = "pending"
+      ^^^^^^^^^^^^^^^^^^^^^^^^^ Use `status` instead of `vStatus`
+    RUBY
+
+    expect_correction(<<~RUBY)
+      order.status = "pending"
     RUBY
   end
 end

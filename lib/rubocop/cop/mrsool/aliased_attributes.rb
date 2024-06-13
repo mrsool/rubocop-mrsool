@@ -7,8 +7,10 @@ module RuboCop
         extend AutoCorrector
 
         def on_send(node)
+          method_name = node.method_name.to_s.delete_suffix("=")
+
           aliases.each do |old_attr, new_attr|
-            if node.method_name == old_attr.to_sym
+            if method_name.to_sym.eql?(old_attr.to_sym)
               add_offense(node, message: "Use `#{new_attr}` instead of `#{old_attr}`") do |corrector|
                 corrector.replace(node.loc.selector, new_attr)
               end
