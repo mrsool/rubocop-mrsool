@@ -38,14 +38,3 @@ Mrsool/DoNotUseTravelTo:
   Description: 'Do not use travel_to, use Timecop.freeze instead. Check our freeze meta syntax in rails_helper.rb'
   Enabled: true
   VersionAdded: '0.1.0'
-
-Mrsool/LocalesConsistency:
-  Description: 'Ensure translation keys exist in all supported language files'
-  Enabled: true
-  VersionAdded: '0.1.0'
-  SupportedLanguages:
-    - en
-    - ar
-    - ur
-    - bn
-    - hi
