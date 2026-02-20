@@ -59,10 +59,34 @@ module RuboCop
           deleted_in_same_dir = deleted_worker_files_in_same_dir
           return if deleted_in_same_dir.empty?
 
+          # Exclude paths that exist on disk with the correct alias (OldWorker = NewWorker)
+          new_worker_name = expected_worker_name_from_path
+          still_dirty = deleted_in_same_dir.reject do |rel_path|
+            full_path = File.join(root_dir, rel_path)
+            next false unless File.file?(full_path)
+
+            old_worker_name = worker_name_from_relative_path(rel_path)
+            file_contains_correct_alias?(full_path, old_worker_name, new_worker_name)
+          end
+          return if still_dirty.empty?
+
           add_offense(
             node,
-            message: format(MSG_DIRTY_RENAME, deleted_paths: deleted_in_same_dir.join(', '))
+            message: format(MSG_DIRTY_RENAME, deleted_paths: still_dirty.join(', '))
           )
+        end
+
+        # Expected worker class name from a relative path (e.g. app/workers/sms_worker.rb -> SmsWorker)
+        def worker_name_from_relative_path(rel_path)
+          base = rel_path.sub(%r{\A.*app/workers/}, '').sub(/\.rb\z/, '')
+          base.split('/').map { |s| camelize(s) }.join('::')
+        end
+
+        # True if the file contains a constant assignment: old_worker_name = new_worker_name
+        def file_contains_correct_alias?(full_path, old_worker_name, new_worker_name)
+          content = File.read(full_path)
+          pattern = /\b#{Regexp.escape(old_worker_name)}\s*=\s*#{Regexp.escape(new_worker_name)}\b/
+          content.match?(pattern)
         end
 
         # Returns relative paths of worker files that were deleted (vs merge target) in the
@@ -83,8 +107,22 @@ module RuboCop
 
         def relative_path_from_root
           path = processed_source.file_path
-          root = config.root_dir.to_s
+          root = root_dir.to_s
           path.start_with?(root) ? path.sub("#{root}/", '').sub(%r{\A/}, '') : path
+        end
+
+        def root_dir
+          return config.root_dir if config.respond_to?(:root_dir) && config.root_dir
+
+          path = processed_source.file_path.to_s
+          dir = File.expand_path(File.dirname(path))
+          loop do
+            return dir if File.directory?(File.join(dir, '.git'))
+            parent = File.dirname(dir)
+            break if parent == dir
+            dir = parent
+          end
+          Dir.pwd
         end
 
         # Returns { added: [...], deleted: [...] } relative paths under app/workers/, or nil if unavailable.
@@ -96,7 +134,7 @@ module RuboCop
           ref = merge_target_ref
           return nil if ref.nil? || ref.empty?
 
-          root = config.root_dir.to_s
+          root = root_dir.to_s
           return nil unless File.directory?(File.join(root, '.git'))
 
           merge_base = nil
@@ -129,17 +167,14 @@ module RuboCop
           @worker_diff_vs_merge_target = { added: [], deleted: [] }
         end
 
-        # Prefer CI env (PR/MR base branch). Standard vars: GITHUB_BASE_REF (GitHub Actions,
-        # pull_request events), CI_MERGE_REQUEST_TARGET_BRANCH_NAME (GitLab CI, merge request pipelines).
-        # Fall back to MergeTargetBranch config for local runs.
         def merge_target_ref
-          env_ref = ENV['GITHUB_BASE_REF'] || ENV['CI_MERGE_REQUEST_TARGET_BRANCH_NAME']
-          return "origin/#{env_ref.strip}" if env_ref.is_a?(String) && !env_ref.strip.empty?
-
           cfg = cop_config['MergeTargetBranch']
           return cfg if cfg.is_a?(String) && !cfg.strip.empty?
 
-          nil
+          env_ref = ENV['GITHUB_BASE_REF'] || ENV['CI_MERGE_REQUEST_TARGET_BRANCH_NAME'] || ENV['TARGET_BRANCH']
+          return nil if env_ref.nil? || env_ref.strip.empty?
+
+          "origin/#{env_ref.strip}"
         end
 
         def in_workers_path?
