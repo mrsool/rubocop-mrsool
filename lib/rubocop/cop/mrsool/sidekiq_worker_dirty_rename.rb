@@ -129,14 +129,17 @@ module RuboCop
           @worker_diff_vs_merge_target = { added: [], deleted: [] }
         end
 
+        # Prefer CI env (PR/MR base branch). Standard vars: GITHUB_BASE_REF (GitHub Actions,
+        # pull_request events), CI_MERGE_REQUEST_TARGET_BRANCH_NAME (GitLab CI, merge request pipelines).
+        # Fall back to MergeTargetBranch config for local runs.
         def merge_target_ref
+          env_ref = ENV['GITHUB_BASE_REF'] || ENV['CI_MERGE_REQUEST_TARGET_BRANCH_NAME']
+          return "origin/#{env_ref.strip}" if env_ref.is_a?(String) && !env_ref.strip.empty?
+
           cfg = cop_config['MergeTargetBranch']
           return cfg if cfg.is_a?(String) && !cfg.strip.empty?
 
-          env_ref = ENV['GITHUB_BASE_REF'] || ENV['CI_MERGE_REQUEST_TARGET_BRANCH_NAME'] || ENV['TARGET_BRANCH']
-          return nil if env_ref.nil? || env_ref.strip.empty?
-
-          "origin/#{env_ref.strip}"
+          nil
         end
 
         def in_workers_path?

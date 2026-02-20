@@ -40,7 +40,6 @@ Mrsool/DoNotUseTravelTo:
   VersionAdded: '0.1.0'
 
 Mrsool/SidekiqWorkerDirtyRename:
-  Description: 'Block unsafe Sidekiq worker renames. Class name must match path; detect renames via git diff vs merge target (added + deleted worker in same dir) and require old file kept with alias.'
+  Description: 'Block unsafe Sidekiq worker renames. Class name must match path; detect renames via git diff vs merge target. Merge target from CI env (GITHUB_BASE_REF, etc.) or optional MergeTargetBranch for local.'
   Enabled: true
-  MergeTargetBranch: 'origin/develop'
   VersionAdded: '0.1.0'
