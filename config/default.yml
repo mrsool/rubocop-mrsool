@@ -40,8 +40,7 @@ Mrsool/DoNotUseTravelTo:
   VersionAdded: '0.1.0'
 
 Mrsool/SidekiqWorkerDirtyRename:
-  Description: 'Do not change Sidekiq worker names; class name must match file path (expected name)'
+  Description: 'Block unsafe Sidekiq worker renames. Class name must match path; detect renames via git diff vs merge target (added + deleted worker in same dir) and require old file kept with alias.'
   Enabled: true
-  Include:
-    - 'app/workers/**/*.rb'
+  MergeTargetBranch: 'origin/develop'
   VersionAdded: '0.1.0'

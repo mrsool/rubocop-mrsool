@@ -3,33 +3,35 @@
 module RuboCop
   module Cop
     module Mrsool
-      # Enforces that Sidekiq worker names are never changed.
+      # Enforces that Sidekiq worker names match their file path and blocks unsafe renames.
       #
-      # The worker name (the class name) must be the same as the name implied by
-      # the file path. Developers are not allowed to rename Sidekiq workers or
-      # their files—changing either breaks jobs already enqueued in Redis.
+      # 1. The worker class name must match the name implied by the file path.
+      # 2. Compares the current branch to the merge target (e.g. develop). If a worker file
+      #    was added and another worker file in the same directory was deleted, that's a
+      #    rename (e.g. sms_worker.rb -> notification_worker.rb). The deleted file(s) must
+      #    be kept with an alias so enqueued jobs still work. Configure MergeTargetBranch
+      #    or set CI env (e.g. GITHUB_BASE_REF). See:
+      #    https://github.com/sidekiq/sidekiq/wiki/FAQ#how-do-i-safely-rename-a-job-class
       #
-      # @example Allowed: class name matches path (name unchanged)
-      #   # app/workers/orders/expire_worker.rb
-      #   module Orders
-      #     class ExpireWorker
-      #       include Sidekiq::Worker
-      #     end
+      # @example Allowed: class name matches path
+      #   # app/workers/notification_worker.rb
+      #   class NotificationWorker
+      #     include Sidekiq::Worker
       #   end
       #
-      # @example Disallowed: class or filename was changed
-      #   # app/workers/orders/expire_worker.rb
-      #   module Orders
-      #     class ExpireOrderWorker  # offense: name must stay ExpireWorker
-      #       include Sidekiq::Worker
-      #     end
-      #   end
+      # @example Allowed: safe rename - old file kept with alias
+      #   # Keep app/workers/sms_worker.rb with: SmsWorker = NotificationWorker
+      #
+      # @example Disallowed: dirty rename - added notification_worker.rb, deleted sms_worker.rb
+      #   # offense: keep sms_worker.rb (e.g. SmsWorker = NotificationWorker)
       #
       class SidekiqWorkerDirtyRename < Base
-        MSG = 'Do not change Sidekiq worker names. Expected `%<expected>s` (from path) but found `%<actual>s`. Keep the worker name the same.'
+        MSG_NAME_MISMATCH = 'Do not change Sidekiq worker names. Expected `%<expected>s` (from path) but found `%<actual>s`. Keep the worker name the same.'
+        MSG_DIRTY_RENAME = 'Sidekiq worker rename detected vs merge target: you added this file and deleted %<deleted_paths>s. Keep the deleted file(s) so both class names are loadable (e.g. OldWorker = NewWorker in the old file). See https://github.com/sidekiq/sidekiq/wiki/FAQ#how-do-i-safely-rename-a-job-class'
 
         WORKERS_PATH = %r{app/workers/}
         SIDEKIQ_WORKER = '(const (const nil? :Sidekiq) :Worker)'
+        WORKER_SUFFIX = '_worker.rb'
 
         def_node_search :includes_sidekiq_worker?, "(send _ :include #{SIDEKIQ_WORKER})"
 
@@ -39,17 +41,103 @@ module RuboCop
 
           expected = expected_worker_name_from_path
           actual = full_class_name(node)
-          return if actual == expected
+          if actual != expected
+            add_offense(node, message: format(MSG_NAME_MISMATCH, expected: expected, actual: actual))
+            return
+          end
 
-          add_offense(node, message: format(MSG, expected: expected, actual: actual))
+          check_safe_rename(node)
         end
 
         def on_module(node)
           # Only the innermost class is the worker; we check classes via on_class.
-          # Modules don't need to be checked for name match by this cop.
         end
 
         private
+
+        def check_safe_rename(node)
+          deleted_in_same_dir = deleted_worker_files_in_same_dir
+          return if deleted_in_same_dir.empty?
+
+          add_offense(
+            node,
+            message: format(MSG_DIRTY_RENAME, deleted_paths: deleted_in_same_dir.join(', '))
+          )
+        end
+
+        # Returns relative paths of worker files that were deleted (vs merge target) in the
+        # same directory as the current file. Empty if no merge target, git unavailable, or
+        # current file wasn't added.
+        def deleted_worker_files_in_same_dir
+          diff = worker_diff_vs_merge_target
+          return [] if diff.nil?
+
+          current_relative = relative_path_from_root
+          return [] unless diff[:added].include?(current_relative)
+
+          current_dir = File.dirname(current_relative)
+          diff[:deleted].select do |path|
+            File.dirname(path) == current_dir && path.end_with?(WORKER_SUFFIX)
+          end
+        end
+
+        def relative_path_from_root
+          path = processed_source.file_path
+          root = config.root_dir.to_s
+          path.start_with?(root) ? path.sub("#{root}/", '').sub(%r{\A/}, '') : path
+        end
+
+        # Returns { added: [...], deleted: [...] } relative paths under app/workers/, or nil if unavailable.
+        def worker_diff_vs_merge_target
+          @worker_diff_vs_merge_target ||= compute_worker_diff_vs_merge_target
+        end
+
+        def compute_worker_diff_vs_merge_target
+          ref = merge_target_ref
+          return nil if ref.nil? || ref.empty?
+
+          root = config.root_dir.to_s
+          return nil unless File.directory?(File.join(root, '.git'))
+
+          merge_base = nil
+          Dir.chdir(root) do
+            merge_base = `git merge-base HEAD #{ref} 2>/dev/null`.strip
+            return nil if merge_base.empty?
+          end
+
+          added = []
+          deleted = []
+          Dir.chdir(root) do
+            out = `git diff --name-status #{merge_base} HEAD -- app/workers/ 2>/dev/null`
+            out.each_line do |line|
+              line = line.strip
+              next if line.empty?
+
+              status = line[0]
+              path = line[1..].strip
+              path = path.split("\t").first if path.include?("\t")
+              next unless path.end_with?(WORKER_SUFFIX)
+
+              case status
+              when 'A' then added << path
+              when 'D' then deleted << path
+              end
+            end
+          end
+          { added: added, deleted: deleted }
+        rescue StandardError
+          @worker_diff_vs_merge_target = { added: [], deleted: [] }
+        end
+
+        def merge_target_ref
+          cfg = cop_config['MergeTargetBranch']
+          return cfg if cfg.is_a?(String) && !cfg.strip.empty?
+
+          env_ref = ENV['GITHUB_BASE_REF'] || ENV['CI_MERGE_REQUEST_TARGET_BRANCH_NAME'] || ENV['TARGET_BRANCH']
+          return nil if env_ref.nil? || env_ref.strip.empty?
+
+          "origin/#{env_ref.strip}"
+        end
 
         def in_workers_path?
           path = processed_source.file_path
