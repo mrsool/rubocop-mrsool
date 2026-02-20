@@ -125,7 +125,7 @@ module RuboCop
           Dir.pwd
         end
 
-        # Returns { added: [...], deleted: [...] } relative paths under app/workers/, or nil if unavailable.
+        # Returns { renames: [[old_path, new_path], ...] } from git diff --find-renames vs merge target.
         def worker_diff_vs_merge_target
           @worker_diff_vs_merge_target ||= compute_worker_diff_vs_merge_target
         end
@@ -143,28 +143,28 @@ module RuboCop
             return nil if merge_base.empty?
           end
 
-          added = []
-          deleted = []
+          renames = []
           Dir.chdir(root) do
-            out = `git diff --name-status #{merge_base} HEAD -- app/workers/ 2>/dev/null`
+            out = `git diff --name-status --find-renames=50% #{merge_base} HEAD -- app/workers/ 2>/dev/null`
             out.each_line do |line|
               line = line.strip
               next if line.empty?
 
-              status = line[0]
-              path = line[1..].strip
-              path = path.split("\t").first if path.include?("\t")
-              next unless path.end_with?(WORKER_SUFFIX)
+              next unless line[0] == 'R'
 
-              case status
-              when 'A' then added << path
-              when 'D' then deleted << path
-              end
+              parts = line[1..].strip.split("\t")
+              next unless parts.size >= 2
+
+              old_path = parts[-2].strip
+              new_path = parts[-1].strip
+              next unless old_path.end_with?(WORKER_SUFFIX) && new_path.end_with?(WORKER_SUFFIX)
+
+              renames << [old_path, new_path]
             end
           end
-          { added: added, deleted: deleted }
+          { renames: renames }
         rescue StandardError
-          @worker_diff_vs_merge_target = { added: [], deleted: [] }
+          @worker_diff_vs_merge_target = { renames: [] }
         end
 
         def merge_target_ref
